@@ -32,16 +32,21 @@ def get_users():
 @app.route('/users', methods=['POST'])
 def create_user():
     data = request.get_json()
-    username = data['username']
-    email = data['email']
-
+    username = data.get('username')
+    email = data.get('email')
+    if username is None or email is None:
+        return {"error": "username and email are required"}, 400
     conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
-    cursor.execute('INSERT INTO users (username, email) VALUES (?, ?)', (username, email))
-    conn.commit()
-    conn.close()
+    try:
+        cursor.execute('INSERT INTO users (username, email) VALUES (?, ?)', (username, email))
+        conn.commit()
+        conn.close()
+        return {"message": "User created successfully", "username": username}, 201
+    except sqlite3.IntegrityError:
+        conn.close()
+        return {"error": "username or email already exists"}, 409
 
-    return {"message": "User created", "username": username}, 201
 
 @app.route('/posts', methods=['GET'])
 def get_posts():
@@ -58,17 +63,23 @@ def get_posts():
 @app.route("/posts", methods=["POST"])
 def create_post():
     data = request.get_json()
-    user_id = data["user_id"]
-    title = data["title"]
-    content = data["content"]
-
+    user_id = data.get("user_id")
+    title = data.get("title")
+    content = data.get("content")
+    if title is None or content is None or user_id is None:
+        return {"error": "user id, title, and content are required"}, 400
     conn = sqlite3.connect("database.db")
+    conn.execute("PRAGMA foreign_keys = ON")
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO posts (user_id, title, content) VALUES (?, ?, ?)", (user_id, title, content))
-    conn.commit()
-    conn.close()
+    try:
+        cursor.execute("INSERT INTO posts (user_id, title, content) VALUES (?, ?, ?)", (user_id, title, content))
+        conn.commit()
+        conn.close()
+        return {"message": "Post created", "title": title}, 201
+    except sqlite3.IntegrityError:
+        conn.close()
+        return {"error": "Invalid User ID"}, 400
 
-    return {"message": "Post created", "title": title}, 201
 if __name__ == '__main__':
     app.run(debug=True)
 
